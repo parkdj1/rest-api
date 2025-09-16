@@ -23,6 +23,7 @@ This REST API project implements a simple user and post management system using 
 ### Core Framework
 - **Flask 2.3.3**: Lightweight web framework chosen for its simplicity and flexibility
 - **Flask-CORS 4.0.0**: Enables cross-origin requests for frontend integration
+- **Marshmallow 3.20.1**: Data validation and serialization library
 
 ### Testing Framework
 - **pytest 7.4.2**: Modern testing framework with excellent Flask integration
@@ -33,8 +34,13 @@ This REST API project implements a simple user and post management system using 
 - **gunicorn 21.2.0**: WSGI server for production deployment
 - **requests 2.31.0**: HTTP library for testing and external API calls
 
+### Deployment & Infrastructure
+- **Docker**: Containerization for consistent deployment
+- **Google Cloud Run**: Serverless container platform
+- **Docker Compose**: Local development orchestration
+
 ### Language Features
-- **Python 3.9+**: Modern Python with type hints and dataclasses
+- **Python 3.11+**: Modern Python with type hints and dataclasses
 - **Type Hints**: Full type annotations for better IDE support and maintainability
 
 ## Architectural Patterns
@@ -72,7 +78,28 @@ class DataStore:
 - **Testability**: Easy to mock data operations for testing
 - **Future Flexibility**: Can easily swap in-memory storage for database
 
-### 3. Domain Model Pattern
+### 3. Schema Validation Pattern
+**Implementation**: Marshmallow schemas for data validation and serialization
+
+```python
+class UserSchema(Schema):
+    id = fields.Integer(dump_only=True)
+    name = fields.String(required=True, allow_none=False)
+    email = fields.Email(required=True, allow_none=False)
+    
+    @validates('email')
+    def validate_email_uniqueness(self, value):
+        # Custom validation logic
+```
+
+**Benefits**:
+- **Data Integrity**: Automatic validation of input data
+- **Type Safety**: Ensures correct data types
+- **Custom Validation**: Business rule enforcement (email uniqueness, user_id existence)
+- **Serialization**: Consistent JSON output format
+- **Error Handling**: Detailed validation error messages
+
+### 4. Domain Model Pattern
 **Implementation**: User and Post classes represent business entities
 
 ```python
@@ -207,10 +234,11 @@ class DataStore:
 - **Status Codes**: Appropriate HTTP status codes for all scenarios
 
 ### Validation Strategy
-- **Required Fields**: Validate presence of required fields
-- **Data Types**: Ensure correct data types
-- **Business Rules**: Email uniqueness, user existence for posts
-- **Input Sanitization**: Basic validation of input data
+- **Marshmallow Schemas**: Centralized validation logic
+- **Required Fields**: Schema-level required field validation
+- **Data Types**: Automatic type conversion and validation
+- **Business Rules**: Custom validators for email uniqueness, user existence
+- **Error Responses**: Detailed validation error messages with field-specific details
 
 ## Testing Strategy
 
@@ -277,6 +305,60 @@ tests/
 - **Chosen**: Full type hints
 - **Alternative**: Dynamic typing
 - **Impact**: More verbose code, but better IDE support and error prevention
+
+## Deployment Architecture
+
+### Containerization Strategy
+
+#### Docker Configuration
+- **Base Image**: `python:3.11-slim` for minimal attack surface
+- **Multi-stage Build**: Optimized for production deployment
+- **Security**: Non-root user execution
+- **Health Checks**: Built-in application monitoring
+
+#### Production Server Configuration
+```bash
+# Gunicorn optimized for Cloud Run
+gunicorn --bind 0.0.0.0:$PORT \
+         --workers 1 \
+         --threads 8 \
+         --timeout 0 \
+         --preload \
+         app:app
+```
+
+**Benefits**:
+- **Single Worker + Threads**: Optimal for Cloud Run's request model
+- **Preload**: Faster startup times
+- **Timeout 0**: Let Cloud Run handle request timeouts
+
+### Cloud Run Deployment
+
+#### Serverless Benefits
+- **Auto-scaling**: 0-10 instances based on demand
+- **Pay-per-use**: Only pay for actual request processing
+- **No server management**: Fully managed infrastructure
+- **Global deployment**: Deploy to multiple regions
+
+#### Configuration
+- **Memory**: 512Mi (adjustable based on needs)
+- **CPU**: 1 vCPU
+- **Concurrency**: 100 requests per instance
+- **Timeout**: 300 seconds maximum
+
+### Local Development
+
+#### Docker Compose Setup
+```yaml
+services:
+  rest-api:        # Production-like environment
+  rest-api-dev:    # Development with volume mounting
+```
+
+**Benefits**:
+- **Environment Parity**: Same container in dev and prod
+- **Live Reload**: Development service with volume mounting
+- **Easy Setup**: One command to start development environment
 
 ## Future Considerations
 

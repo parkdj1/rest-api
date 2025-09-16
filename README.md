@@ -1,6 +1,6 @@
 # REST API Project
 
-A simple Flask-based RESTful API for managing users and posts with comprehensive testing and in-memory data storage.
+A production-ready Flask-based RESTful API for managing users and posts with comprehensive testing, data validation, and deployment capabilities.
 
 ## Table of Contents
 
@@ -8,6 +8,8 @@ A simple Flask-based RESTful API for managing users and posts with comprehensive
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
 - [Running the Application](#running-the-application)
+- [Docker Deployment](#docker-deployment)
+- [Google Cloud Run Deployment](#google-cloud-run-deployment)
 - [API Documentation](#api-documentation)
 - [Testing](#testing)
 - [Project Structure](#project-structure)
@@ -16,12 +18,15 @@ A simple Flask-based RESTful API for managing users and posts with comprehensive
 ## Features
 
 - **RESTful API Design**: Clean, REST-compliant endpoints for users and posts
-- **Data Validation**: Comprehensive input validation and error handling
+- **Marshmallow Schema Validation**: Robust data validation and serialization
 - **In-Memory Storage**: Simple, fast data storage using Python dictionaries
-- **Comprehensive Testing**: 59 unit and integration tests with 100% endpoint coverage
+- **Comprehensive Testing**: 72 unit and integration tests with 100% endpoint coverage
 - **Blueprint Architecture**: Modular code organization using Flask Blueprints
+- **Docker Support**: Production-ready containerization with optimized settings
+- **Cloud Run Ready**: One-click deployment to Google Cloud Run
 - **CORS Support**: Cross-origin resource sharing enabled
 - **Type Hints**: Full type annotations for better code maintainability
+- **Health Checks**: Built-in health monitoring and status endpoints
 
 ## Prerequisites
 
@@ -49,41 +54,140 @@ A simple Flask-based RESTful API for managing users and posts with comprehensive
 
 ## Running the Application
 
+### Local Development
+
 1. **Start the development server**
    ```bash
    python app.py
    ```
 
 2. **Access the API**
-   - Base URL: `http://localhost:5000`
-   - API endpoints: `http://localhost:5000/api/`
+   - Base URL: `http://localhost:8080`
+   - API endpoints: `http://localhost:8080/api/`
 
 3. **Test the API**
    ```bash
-   curl http://localhost:5000/
+   curl http://localhost:8080/
    # Expected response: {"message": "Welcome to the REST API"}
    ```
+
+## Docker Deployment
+
+### Quick Start with Docker
+
+1. **Build and run with Docker**
+   ```bash
+   ./deploy.sh
+   ```
+
+2. **Or use Docker Compose**
+   ```bash
+   # Production
+   docker-compose up -d
+   
+   # Development with live reload
+   docker-compose --profile dev up
+   ```
+
+3. **Access the containerized API**
+   - Production: `http://localhost:8080`
+   - Development: `http://localhost:8081`
+
+### Manual Docker Commands
+
+```bash
+# Build the image
+docker build -t rest-api .
+
+# Run the container
+docker run -d --name rest-api -p 8080:8080 -e PORT=8080 rest-api
+
+# View logs
+docker logs rest-api
+
+# Stop and remove
+docker stop rest-api && docker rm rest-api
+```
+
+## Google Cloud Run Deployment
+
+### Prerequisites
+
+1. **Install Google Cloud CLI**
+   ```bash
+   # Follow: https://cloud.google.com/sdk/docs/install
+   ```
+
+2. **Authenticate and set project**
+   ```bash
+   gcloud auth login
+   export PROJECT_ID="your-project-id"
+   ```
+
+### Deploy to Cloud Run
+
+1. **Quick deployment**
+   ```bash
+   ./deploy-cloud-run.sh
+   ```
+
+2. **Manual deployment**
+   ```bash
+   # Build and push image
+   gcloud builds submit --tag gcr.io/$PROJECT_ID/rest-api .
+   
+   # Deploy to Cloud Run
+   gcloud run deploy rest-api \
+       --image gcr.io/$PROJECT_ID/rest-api \
+       --platform managed \
+       --region us-central1 \
+       --allow-unauthenticated \
+       --port 8080
+   ```
+
+3. **Access your deployed API**
+   - Your API will be available at: `https://rest-api-xxxxx-uc.a.run.app/`
+   - The deployment script will show you the exact URL
 
 ## API Documentation
 
 ### Base URL
 ```
-http://localhost:5000
+http://localhost:8080  # Local development
+https://your-app.run.app  # Cloud Run deployment
 ```
 
 ### Authentication
 No authentication is required for this API.
 
 ### Response Format
-All responses are in JSON format.
+All responses are in JSON format with Marshmallow schema validation.
+
+### Data Validation
+The API uses Marshmallow schemas for robust data validation:
+
+- **UserSchema**: Validates name (required string) and email (required, valid format)
+- **PostSchema**: Validates title, content (required strings) and user_id (required integer, must exist)
+- **Custom Validation**: Email uniqueness, user_id existence, whitespace validation
 
 ### Error Responses
-The API returns appropriate HTTP status codes and error messages:
+The API returns appropriate HTTP status codes and detailed error messages:
 
-- `400 Bad Request` - Invalid request data
-- `404 Not Found` - Resource not found
+- `400 Bad Request` - Validation failed with detailed error messages
+- `404 Not Found` - Resource not found or invalid user_id
 - `409 Conflict` - Duplicate data (e.g., email already exists)
 - `415 Unsupported Media Type` - Missing or invalid content-type
+
+### Validation Error Format
+```json
+{
+  "error": "Validation failed",
+  "details": {
+    "email": ["Not a valid email address."],
+    "name": ["Name cannot be empty or just whitespace."]
+  }
+}
+```
 
 ### Users Endpoints
 
@@ -388,11 +492,12 @@ GET /api/posts/user/{user_id}
 ### Test Coverage
 
 The test suite includes:
-- **59 total tests** covering all endpoints and functionality
-- **Unit tests** for data store operations
+- **72 total tests** covering all endpoints and functionality
+- **Unit tests** for data store operations and Marshmallow schemas
 - **Integration tests** for complete API workflows
 - **Error handling tests** for all error scenarios
-- **Data validation tests** for input validation
+- **Data validation tests** for Marshmallow schema validation
+- **Requirements verification tests** for API specification compliance
 
 ### Test Categories
 
@@ -420,19 +525,34 @@ The test suite includes:
 
 ```
 rest-api/
-├── app.py                 # Main Flask application
-├── users.py              # Users Blueprint
-├── posts.py              # Posts Blueprint
-├── data_store.py         # In-memory data store
-├── conftest.py           # Test configuration
-├── requirements.txt      # Python dependencies
-├── README.md            # This file
-├── ARCHITECTURE.md      # Architecture documentation
-└── tests/               # Test files
-    ├── test_users.py
-    ├── test_posts.py
-    ├── test_data_store.py
-    └── test_integration.py
+├── app.py                    # Main Flask application
+├── data_store.py            # In-memory data store
+├── schemas.py               # Marshmallow schemas for validation
+├── requirements.txt         # Python dependencies
+├── Dockerfile               # Docker configuration
+├── docker-compose.yml       # Docker Compose configuration
+├── deploy.sh                # Local Docker deployment script
+├── deploy-cloud-run.sh      # Google Cloud Run deployment script
+├── cloud-run-service.yaml   # Cloud Run service configuration
+├── .gitignore              # Git ignore rules
+├── README.md               # This file
+├── ARCHITECTURE.md         # Architecture documentation
+├── models/                 # Data models
+│   ├── __init__.py
+│   ├── user.py            # User model
+│   └── post.py            # Post model
+├── routes/                 # API routes
+│   ├── __init__.py
+│   ├── user_routes.py     # Users Blueprint
+│   └── post_routes.py     # Posts Blueprint
+└── tests/                  # Test files
+    ├── conftest.py        # Test configuration
+    ├── test_users.py      # User endpoint tests
+    ├── test_posts.py      # Post endpoint tests
+    ├── test_data_store.py # Data store tests
+    ├── test_integration.py # Integration tests
+    ├── test_requirements.py # Requirements verification tests
+    └── TESTS.md           # Test documentation
 ```
 
 ## Example Usage
@@ -441,31 +561,37 @@ rest-api/
 
 ```bash
 # Get all users
-curl http://localhost:5000/api/users/
+curl http://localhost:8080/api/users/
 
-# Create a new user
-curl -X POST http://localhost:5000/api/users/ \
+# Create a new user (with schema validation)
+curl -X POST http://localhost:8080/api/users/ \
   -H "Content-Type: application/json" \
   -d '{"name": "Test User", "email": "test@example.com"}'
 
 # Get a specific user
-curl http://localhost:5000/api/users/1
+curl http://localhost:8080/api/users/1
 
 # Update a user
-curl -X PUT http://localhost:5000/api/users/1 \
+curl -X PUT http://localhost:8080/api/users/1 \
   -H "Content-Type: application/json" \
   -d '{"name": "Updated Name"}'
 
 # Delete a user
-curl -X DELETE http://localhost:5000/api/users/1
+curl -X DELETE http://localhost:8080/api/users/1
 
-# Create a post
-curl -X POST http://localhost:5000/api/posts/ \
+# Create a post (with user_id validation)
+curl -X POST http://localhost:8080/api/posts/ \
   -H "Content-Type: application/json" \
   -d '{"title": "My Post", "content": "Post content", "user_id": 1}'
 
+# Test validation errors
+curl -X POST http://localhost:8080/api/users/ \
+  -H "Content-Type: application/json" \
+  -d '{"name": "", "email": "invalid-email"}'
+# Returns: {"error": "Validation failed", "details": {...}}
+
 # Get posts by user
-curl http://localhost:5000/api/posts/user/1
+curl http://localhost:8080/api/posts/user/1
 ```
 
 ### Using Python requests

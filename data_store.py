@@ -1,51 +1,6 @@
-from typing import List, Optional, Dict, Any
-
-
-class User:
-    def __init__(self, id: int, name: str, email: str):
-        self.id = id
-        self.name = name
-        self.email = email
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "id": self.id,
-            "name": self.name,
-            "email": self.email
-        }
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'User':
-        return cls(
-            id=data["id"],
-            name=data["name"],
-            email=data["email"]
-        )
-
-
-class Post:
-    def __init__(self, id: int, title: str, content: str, user_id: int):
-        self.id = id
-        self.title = title
-        self.content = content
-        self.user_id = user_id
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "id": self.id,
-            "title": self.title,
-            "content": self.content,
-            "user_id": self.user_id
-        }
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'Post':
-        return cls(
-            id=data["id"],
-            title=data["title"],
-            content=data["content"],
-            user_id=data["user_id"]
-        )
+from typing import List, Optional, Dict
+from models.user import User
+from models.post import Post
 
 
 class DataStore:

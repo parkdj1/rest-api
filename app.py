@@ -1,7 +1,7 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
-from users import users_bp
-from posts import posts_bp
+from routes.user_routes import users_bp
+from routes.post_routes import posts_bp
 
 app = Flask(__name__)
 CORS(app)

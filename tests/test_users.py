@@ -67,7 +67,8 @@ class TestUsersEndpoints:
         )
         assert response.status_code == 400
         data = json.loads(response.data)
-        assert "Field 'name' is required" in data['error']
+        assert "Validation failed" in data['error']
+        assert 'name' in data['details']
 
         # Missing email
         response = client.post(
@@ -77,7 +78,8 @@ class TestUsersEndpoints:
         )
         assert response.status_code == 400
         data = json.loads(response.data)
-        assert "Field 'email' is required" in data['error']
+        assert "Validation failed" in data['error']
+        assert 'email' in data['details']
 
     def test_create_user_empty_data(self, client):
         """Test POST /api/users returns 400 for empty data"""

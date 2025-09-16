@@ -71,7 +71,8 @@ class TestPostsEndpoints:
         )
         assert response.status_code == 400
         data = json.loads(response.data)
-        assert "Field 'title' is required" in data['error']
+        assert "Validation failed" in data['error']
+        assert 'title' in data['details']
 
         # Missing content
         response = client.post(
@@ -81,7 +82,8 @@ class TestPostsEndpoints:
         )
         assert response.status_code == 400
         data = json.loads(response.data)
-        assert "Field 'content' is required" in data['error']
+        assert "Validation failed" in data['error']
+        assert 'content' in data['details']
 
         # Missing user_id
         response = client.post(
@@ -92,7 +94,8 @@ class TestPostsEndpoints:
         )
         assert response.status_code == 400
         data = json.loads(response.data)
-        assert "Field 'user_id' is required" in data['error']
+        assert "Validation failed" in data['error']
+        assert 'user_id' in data['details']
 
     def test_create_post_empty_data(self, client):
         """Test POST /api/posts returns 400 for empty data"""

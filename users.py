@@ -1,27 +1,23 @@
 from flask import Blueprint, jsonify, request
+from data_store import data_store
 
 users_bp = Blueprint('users', __name__, url_prefix='/api/users')
-
-# Sample data for demonstration
-users_data = [
-    {"id": 1, "name": "John Doe", "email": "john@example.com"},
-    {"id": 2, "name": "Jane Smith", "email": "jane@example.com"}
-]
 
 
 @users_bp.route('/', methods=['GET'])
 def get_users():
     """Get all users"""
-    return jsonify(users_data)
+    users = data_store.get_all_users()
+    return jsonify([user.to_dict() for user in users])
 
 
 @users_bp.route('/<int:user_id>', methods=['GET'])
 def get_user(user_id):
     """Get a single user by ID"""
-    user = next((user for user in users_data if user["id"] == user_id), None)
+    user = data_store.get_user(user_id)
     if not user:
         return jsonify({"error": "User not found"}), 404
-    return jsonify(user)
+    return jsonify(user.to_dict())
 
 
 @users_bp.route('/', methods=['POST'])
@@ -38,23 +34,18 @@ def create_user():
             return jsonify({"error": f"Field '{field}' is required"}), 400
 
     # Check if email already exists
-    if any(user['email'] == data['email'] for user in users_data):
+    existing_user = data_store.get_user_by_email(data['email'])
+    if existing_user:
         return jsonify({"error": "Email already exists"}), 409
 
-    new_user = {
-        "id": max([user["id"] for user in users_data], default=0) + 1,
-        "name": data["name"],
-        "email": data["email"]
-    }
-
-    users_data.append(new_user)
-    return jsonify(new_user), 201
+    new_user = data_store.create_user(data["name"], data["email"])
+    return jsonify(new_user.to_dict()), 201
 
 
 @users_bp.route('/<int:user_id>', methods=['PUT'])
 def update_user(user_id):
     """Update an existing user"""
-    user = next((user for user in users_data if user["id"] == user_id), None)
+    user = data_store.get_user(user_id)
     if not user:
         return jsonify({"error": "User not found"}), 404
 
@@ -63,24 +54,22 @@ def update_user(user_id):
         return jsonify({"error": "No JSON data provided"}), 400
 
     # Check if email is being updated and if it already exists
-    if 'email' in data and data['email'] != user['email']:
-        if any(u['email'] == data['email'] for u in users_data if u['id'] != user_id):
+    if 'email' in data and data['email'] != user.email:
+        existing_user = data_store.get_user_by_email(data['email'])
+        if existing_user:
             return jsonify({"error": "Email already exists"}), 409
 
-    # Update user fields
-    for field in ['name', 'email']:
-        if field in data:
-            user[field] = data[field]
-
-    return jsonify(user)
+    updated_user = data_store.update_user(
+        user_id,
+        name=data.get('name'),
+        email=data.get('email')
+    )
+    return jsonify(updated_user.to_dict())
 
 
 @users_bp.route('/<int:user_id>', methods=['DELETE'])
 def delete_user(user_id):
     """Delete a user"""
-    user = next((user for user in users_data if user["id"] == user_id), None)
-    if not user:
+    if not data_store.delete_user(user_id):
         return jsonify({"error": "User not found"}), 404
-
-    users_data.remove(user)
     return '', 204

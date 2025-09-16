@@ -16,5 +16,9 @@ def home():
     return jsonify({"message": "Welcome to the REST API"})
 
 
+# Production entry point
 if __name__ == '__main__':
-    app.run(debug=True)
+    import os
+    port = int(os.environ.get('PORT', 8000))
+    debug = os.environ.get('FLASK_ENV') == 'development'
+    app.run(host='0.0.0.0', port=port, debug=debug)

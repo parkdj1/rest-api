@@ -1,10 +1,10 @@
 # Use Python 3.11 slim image as base
 FROM python:3.11-slim
 
-# Set environment variables
+# Set environment variables (Cloud Run uses 8080, local uses 8000)
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PORT=8000
+    PORT=8080
 
 # Set work directory
 WORKDIR /app
@@ -38,5 +38,5 @@ EXPOSE $PORT
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:$PORT/ || exit 1
 
-# Run the application with Gunicorn
-CMD gunicorn --bind 0.0.0.0:$PORT --workers 4 --timeout 120 --keep-alive 2 --max-requests 1000 --max-requests-jitter 100 app:app
+# Run the application with Gunicorn (optimized for both local and Cloud Run)
+CMD exec gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 0 --keep-alive 2 --max-requests 1000 --max-requests-jitter 100 --preload app:app

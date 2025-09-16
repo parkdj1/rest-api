@@ -1,5 +1,7 @@
 from flask import Blueprint, jsonify, request
 from data_store import data_store
+from schemas import user_schema, users_schema, user_update_schema
+from marshmallow import ValidationError
 
 users_bp = Blueprint('users', __name__, url_prefix='/api/users')
 
@@ -8,7 +10,7 @@ users_bp = Blueprint('users', __name__, url_prefix='/api/users')
 def get_users():
     """Get all users"""
     users = data_store.get_all_users()
-    return jsonify([user.to_dict() for user in users])
+    return jsonify(users_schema.dump(users))
 
 
 @users_bp.route('/<int:user_id>', methods=['GET'])
@@ -17,7 +19,7 @@ def get_user(user_id):
     user = data_store.get_user(user_id)
     if not user:
         return jsonify({"error": "User not found"}), 404
-    return jsonify(user.to_dict())
+    return jsonify(user_schema.dump(user))
 
 
 @users_bp.route('/', methods=['POST'])
@@ -28,18 +30,18 @@ def create_user():
     if not data:
         return jsonify({"error": "No JSON data provided"}), 400
 
-    required_fields = ['name', 'email']
-    for field in required_fields:
-        if field not in data or not data[field]:
-            return jsonify({"error": f"Field '{field}' is required"}), 400
+    try:
+        # Validate the incoming data using UserSchema
+        validated_data = user_schema.load(data)
+    except ValidationError as err:
+        # Check if it's a duplicate email error
+        if 'email' in err.messages and 'Email address already exists' in str(err.messages['email']):
+            return jsonify({"error": "Email already exists"}), 409
+        return jsonify({"error": "Validation failed", "details": err.messages}), 400
 
-    # Check if email already exists
-    existing_user = data_store.get_user_by_email(data['email'])
-    if existing_user:
-        return jsonify({"error": "Email already exists"}), 409
-
-    new_user = data_store.create_user(data["name"], data["email"])
-    return jsonify(new_user.to_dict()), 201
+    new_user = data_store.create_user(
+        validated_data["name"], validated_data["email"])
+    return jsonify(user_schema.dump(new_user)), 201
 
 
 @users_bp.route('/<int:user_id>', methods=['PUT'])
@@ -53,18 +55,22 @@ def update_user(user_id):
     if not data:
         return jsonify({"error": "No JSON data provided"}), 400
 
-    # Check if email is being updated and if it already exists
-    if 'email' in data and data['email'] != user.email:
-        existing_user = data_store.get_user_by_email(data['email'])
-        if existing_user:
+    try:
+        # Validate the incoming data using UserUpdateSchema with context
+        user_update_schema.context = {'current_user_id': user_id}
+        validated_data = user_update_schema.load(data)
+    except ValidationError as err:
+        # Check if it's a duplicate email error
+        if 'email' in err.messages and 'Email address already exists' in str(err.messages['email']):
             return jsonify({"error": "Email already exists"}), 409
+        return jsonify({"error": "Validation failed", "details": err.messages}), 400
 
     updated_user = data_store.update_user(
         user_id,
-        name=data.get('name'),
-        email=data.get('email')
+        name=validated_data.get('name'),
+        email=validated_data.get('email')
     )
-    return jsonify(updated_user.to_dict())
+    return jsonify(user_schema.dump(updated_user))
 
 
 @users_bp.route('/<int:user_id>', methods=['DELETE'])
